@@ -78,6 +78,15 @@ class RespondTests extends Test.Case {
         this.target.sender(1);
         Assert.that(this.target.value).is.exact.to('12');
     }
+
+    @test
+    When(): void {
+        Respond.to.sender(this.target.sender).with.receiver(this.target.receiver).when(str => str == '0');
+        this.target.sender(0);
+        Assert.that(this.target.value).is.exact.to('0');
+        this.target.sender(1);
+        Assert.that(this.target.value).is.not.exact.to('1');
+    }
 }
 
 window.onload = () => {
