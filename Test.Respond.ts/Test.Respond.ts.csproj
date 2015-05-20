@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <ProjectGuid>{181527E9-48CD-42B9-97E4-6766DF21BC26}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <OutputPath>bin</OutputPath>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <TypeScriptToolsVersion>1.5</TypeScriptToolsVersion>
+    <UseIISExpress>true</UseIISExpress>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="app.css" />
+    <Content Include="index.html" />
+    <Content Include="web.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <TypeScriptCompile Include="..\..\Test.ts\Test.ts\Assert.ts">
+      <Link>Scripts\Assert.ts</Link>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="..\..\Test.ts\Test.ts\Report.ts">
+      <Link>Scripts\Report.ts</Link>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="..\..\Test.ts\Test.ts\Test.ts">
+      <Link>Scripts\Test.ts</Link>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="..\Respond.ts\Respond.ts">
+      <Link>Scripts\Respond.ts</Link>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="app.ts" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="web.Debug.config">
+      <DependentUpon>web.config</DependentUpon>
+    </None>
+    <None Include="web.Release.config">
+      <DependentUpon>web.config</DependentUpon>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Test.ts\Test.ts\Test.ts.csproj">
+      <Project>{eb7fb6ad-5dae-4c03-8d1c-e7fabdfe2e61}</Project>
+      <Name>Test.ts</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Respond.ts\Respond.ts.csproj">
+      <Project>{d03e70fc-3dad-4acc-a402-3a690eeff7b1}</Project>
+      <Name>Respond.ts</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">12.0</VisualStudioVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>Test.Respond.ts</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\WebApplications\Microsoft.WebApplication.targets')" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>59594</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost:59594/</IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>true</TypeScriptSourceMap>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TypeScriptRemoveComments>true</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>false</TypeScriptSourceMap>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
+  <Target Name="CopyLinkedContentFiles" AfterTargets="Build">
+    <Copy Condition="'%(TypeScriptCompile.Link)' != ''" SourceFiles="%(TypeScriptCompile.Identity)" DestinationFiles="%(TypeScriptCompile.Link)" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" />
+    <Copy Condition="'%(TypeScriptCompile.Link)' != ''" SourceFiles="@(TypeScriptCompile -> '%(RootDir)%(Directory)%(Filename).js')" DestinationFolder="$([System.IO.Path]::GetDirectoryName(%(TypeScriptCompile.Link)))" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" />
+    <Copy Condition="'%(TypeScriptCompile.Link)' != ''" SourceFiles="@(TypeScriptCompile -> '%(RootDir)%(Directory)%(Filename).js.map')" DestinationFolder="$([System.IO.Path]::GetDirectoryName(%(TypeScriptCompile.Link)))" SkipUnchangedFiles="true" OverwriteReadOnlyFiles="true" />
+  </Target>
+</Project>
