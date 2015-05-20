@@ -96,6 +96,10 @@
         when(condition: IFunction<T, boolean>) {
             this.condition = <any>condition;
         }
+
+        always() {
+            this.condition = null;
+        }
     }
 
     /*----------------*
@@ -216,6 +220,11 @@
         sender: ISender<T>;
         receiver: IReceiver<T>;
         when: IWhen<T>;
+        always: IAlways;
+    }
+
+    interface IAlways {
+        (): void;
     }
 
     interface IWhen<T> {
