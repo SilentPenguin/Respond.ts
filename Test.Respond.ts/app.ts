@@ -52,6 +52,13 @@ class RespondTests extends Test.Case {
         this.target.senderNumber(1);
         Assert.that(this.target.value).is.exact.to('1');
     }
+    @test
+    ConnectFunction() {
+        var value, func = function (val) { value = val; }
+        Respond.to.sender(this.target.senderNumber).with.function(func);
+        this.target.senderNumber(1);
+        Assert.that(value).is.exact.to('1');
+    }
 
     @test
     As() {
