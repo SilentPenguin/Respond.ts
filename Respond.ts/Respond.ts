@@ -268,8 +268,8 @@
     function WithFunction<T>(): IWithFunction<T> {
         return (receiver: IReceiver<T>): void => {
             receiver.sources = receiver.sources || [];
-            receiver.accept = function () { return true };
-            receiver.receive = receiver;
+            receiver.accept = receiver.accept || function () { return true };
+            receiver.receive = receiver.receive || receiver;
             this.stream.targets.push(receiver);
         };
     }
