@@ -253,11 +253,22 @@
     }
 
     function With<T>(): IWith<T> {
-        return { receiver: WithReceiver.call(this) };
+        return {
+            receiver: WithReceiver.call(this),
+            function: WithFunction.call(this)
+        };
     }
 
     function WithReceiver<T>(): IWithReceiver<T> {
         return (receiver: IReceiver<T>): void => {
+            this.stream.targets.push(receiver);
+        };
+    }
+
+    function WithFunction<T>(): IWithFunction<T> {
+        return (receiver: IReceiver<T>): void => {
+            receiver.sources = receiver.sources || [];
+            receiver.accept = function(){ return true };
             this.stream.targets.push(receiver);
         };
     }
@@ -630,6 +641,11 @@
 
     interface IWith<T> {
         receiver: IWithReceiver<T>;
+        function: IWithFunction<T>;
+    }
+
+    interface IWithFunction<T> {
+        (receiver: IReceiver<T>): void;
     }
 
     interface IWithReceiver<T> {
