@@ -90,6 +90,7 @@
         }
 
         as: IAs<T> = As.call(this);
+        flatten: IFlatten<T> = Flatten.call(this);
         mix: IMix<T> = Mix.call(this);
         pair: IPair<T> = Pair.call(this);
         skip: ISkip<T> = Skip.call(this);
@@ -102,6 +103,13 @@
     function As<T>(): IAs<T> {
         return <TOut>(func: IConverter<T, TOut>): IQuery<TOut> => {
             var stream: ISenderStream<TOut> = new ConvertStream(this.stream, func);
+            return new Query(stream);
+        }
+    }
+
+    function Flatten<T>(): IFlatten<T> {
+        return <TOut>(func?: IConverter<T, any>): IQuery<TOut> => {
+            var stream: ISenderStream<TOut> = new FlattenStream<T, TOut>(this.stream, func != null ? func : item => item);
             return new Query(stream);
         }
     }
@@ -354,6 +362,20 @@
         }
     }
 
+    class FlattenStream<TIn, TOut> extends MessengerStream<TIn, TOut> {
+        private func: IConverter<TIn, TOut[]>;
+
+        constructor(source: ISenderStream<TIn>, func: IConverter<TIn, TOut[]>) {
+            super(source);
+            this.func = func;
+        }
+
+        receive(value: TIn): void {
+            var items: TOut[] = this.func(value);
+            items.forEach(item => this.send(item));
+        }
+    }
+
     class MixStream<T> extends CombineStream<T, T, T> {
         constructor(source: ISenderStream<T>, otherparent: ISenderStream<T>) {
             super(source, otherparent);
@@ -526,6 +548,7 @@
     
     export interface IQuery<T> {
         as: IAs<T>;
+        flatten: IFlatten<T>;
         mix: IMix<T>;
         pair: IPair<T>;
         skip: ISkip<T>;
@@ -537,6 +560,10 @@
 
     interface IAs<T> {
         <TOut>(func: IConverter<T, TOut>): IQuery<TOut>;
+    }
+
+    interface IFlatten<T> {
+        <TOut>(func?: IConverter<T, TOut[]>): IQuery<TOut>;
     }
 
     interface IMix<T> {

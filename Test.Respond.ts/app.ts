@@ -16,6 +16,11 @@ class MyClass {
         return Number(input);
     }
 
+    @sender
+    senderArray(input: number[]): number[] {
+        return input;
+    }
+
     @receiver
     receiverString(input: string) {
         this.value = input;
@@ -53,6 +58,13 @@ class RespondTests extends Test.Case {
         Respond.to.sender(this.target.senderString).as(item => item.toString()).with.receiver(this.target.receiverString);
         this.target.senderString('1');
         Assert.that(this.target.value).is.exact.to('1');
+    }
+
+    @test
+    Flatten() {
+        Respond.to.sender(this.target.senderArray).flatten().with.receiver(this.target.receiverNumber);
+        this.target.senderArray([1,2,3]);
+        Assert.that(this.target.value).is.exact.to(3);
     }
 
     @test
