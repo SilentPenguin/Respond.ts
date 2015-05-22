@@ -296,6 +296,10 @@
             this.value = value;
             this.targets.forEach(target => target.receive(value, this));
         }
+
+        accept(value: TIn): boolean {
+            return true;
+        }
     }
 
     class CombineStream<TIn, TWith, TOut> extends MessengerStream<TIn, TOut> implements IReceiverStream<TWith> {
@@ -309,6 +313,10 @@
 
         receive(value: TIn|TWith, sender?: ISenderStream<TIn|TWith>): void {
             throw Error();
+        }
+
+        accept(value: TIn|TWith): boolean {
+            return true;
         }
     }
 
@@ -336,11 +344,13 @@
         }
 
         receive(value: T): void {
-            if (this.func(value, this.index)) {
+            if (this.func(value, this.index++)) {
                 this.send(value);
             }
+        }
 
-            this.index += 1;
+        accept(value: T): boolean {
+            return this.func(value,  this.index);
         }
     }
 
@@ -382,6 +392,10 @@
                 this.send(value);
             }
         }
+
+        accept(value: T): boolean {
+            return this.func(value);
+        }
     }
 
     class SkipUntilStream<T> extends SkipWhileStream<T> {
@@ -406,6 +420,10 @@
             } else {
                 this.done = true;
             }
+        }
+
+        accept(value: T): boolean {
+            return this.func(value);
         }
     }
 
@@ -432,6 +450,11 @@
                 this.items.push(key);
             }
         }
+
+        accept(value: T): boolean {
+            var key = this.func(value);
+            return this.items.indexOf(key) < 0;
+        }
     }
 
     class UniqueStream<T> extends UniqueByStream<T, T> {
@@ -451,13 +474,19 @@
         }
 
         receive(value: T|TWith, source: ISenderStream<T|TWith>): void {
+            var zip: IZipping<T, TWith>;
+
             this.sourceready = this.sourceready || source == this.source;
             this.otherready = this.otherready || source == this.othersource;
 
             if (this.sourceready && this.otherready && this.source.value != undefined && this.othersource.value != undefined) {
-                this.send(new Zipping(this.source.value, this.othersource.value));
-                this.sourceready = false;
-                this.otherready = false;
+                zip = new Zipping(this.source.value, this.othersource.value);
+                if (this.targets.every(target => !target.accept)
+                    || this.targets.some(target => target.accept && target.accept(zip))) {
+                    this.send(zip);
+                    this.sourceready = false;
+                    this.otherready = false;
+                }
             }
         }
     }
@@ -484,8 +513,16 @@
     interface ISender<T> extends IFunction<any, T>, ISenderStream<T> { }
 
     interface IMessengerStream<TIn, TOut> extends ISenderStream<TOut>, IReceiverStream<TIn> { }
-    interface ISenderStream<T> { value?: T, targets?: IReceiverStream<T>[]; send?(value: T); }
-    interface IReceiverStream<T> { sources?: ISenderStream<T>[]; receive?(value: T, sender?: ISenderStream<T>); }
+    interface ISenderStream<T> {
+        value?: T;
+        targets?: IReceiverStream<T>[];
+        send?(value: T);
+    }
+    interface IReceiverStream<T> {
+        sources?: ISenderStream<T>[];
+        accept?(value: T): boolean;
+        receive?(value: T, sender?: ISenderStream<T>);
+    }
     
     export interface IQuery<T> {
         as: IAs<T>;
