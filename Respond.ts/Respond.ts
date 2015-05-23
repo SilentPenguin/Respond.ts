@@ -90,13 +90,16 @@
         }
 
         as: IAs<T> = As.call(this);
+        delay: IDelay<T> = Delay.call(this);
         flatten: IFlatten<T> = Flatten.call(this);
+        group: IGroup<T> = Group.call(this);
         mix: IMix<T> = Mix.call(this);
         pair: IPair<T> = Pair.call(this);
         skip: ISkip<T> = Skip.call(this);
         take: ITake<T> = Take.call(this);
         unique: IUnique<T> = Unique.call(this);
         with: IWith<T> = With.call(this);
+        withhold: IWithhold<T> = Withhold.call(this);
         zip: IZip<T> = Zip.call(this);
     }
 
@@ -107,10 +110,57 @@
         }
     }
 
+    function Delay<T>(): IDelay<T> {
+        return {
+            for: (ms: number): IQuery<T> => {
+                var stream: ISenderStream<T> = new DelayStream<T>(this.stream, ms);
+                return new Query(stream);
+            }
+        }
+    }
+
     function Flatten<T>(): IFlatten<T> {
         return <TOut>(func?: IConverter<T, any>): IQuery<TOut> => {
             var stream: ISenderStream<TOut> = new FlattenStream<T, TOut>(this.stream, func != null ? func : item => item);
             return new Query(stream);
+        }
+    }
+
+    function Group<T>(): IGroup<T> {
+        return {
+            of: GroupOf.call(this),
+            for: GroupFor.call(this),
+            by: GroupWith.call(this)
+        }
+    }
+
+    function GroupOf<T>(): IGroupFor<T> {
+        return (count: number): IQuery<IGrouping<number, T>> => {
+            var stream: ISenderStream<IGrouping<number, T>> = new GroupCountStream<T>(this.stream, count);
+            return new Query(stream);
+        }
+    }
+
+    function GroupFor<T>(): IGroupFor<T> {
+        return (ms: number): IQuery<IGrouping<number, T>> => {
+            var stream: ISenderStream<IGrouping<number, T>> = new GroupTimerStream<T>(this.stream, ms);
+            return new Query(stream);
+        }
+    }
+
+    function GroupWith<T>(): IGroupWith<T> {
+        return <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>> => {
+            var stream: ISenderStream<IGrouping<TWith, T>> = new GroupByStream<TWith, T>(this.stream, sender);
+            return new Query(stream);
+        }
+    }
+
+    class Grouping<TKey, TValue> {
+        key: TKey;
+        values: TValue[];
+        constructor(key: TKey, values: TValue[]) {
+            this.key = key;
+            this.values = values;
         }
     }
 
@@ -274,6 +324,26 @@
         };
     }
 
+    function Withhold<T>(): IWithhold<T> {
+        return {
+            receiver: WithholdReceiver.call(this),
+            function: WithholdFunction.call(this)
+        };
+    }
+
+    function WithholdReceiver<T>(): IWithholdReceiver<T> {
+        return (receiver: IReceiver<T>): void => {
+            //start at the receiver and work up the chain, looking for a sender connection?
+            //or create an object and use that to destory the connection?
+        };
+    }
+
+    function WithholdFunction<T>(): IWithholdFunction<T> {
+        return (receiver: IReceiver<T>): void => {
+            
+        };
+    }
+
     function Zip<T>(): IZip<T> {
         return { with: ZipWith.call(this) };
     }
@@ -325,9 +395,9 @@
     class CombineStream<TIn, TWith, TOut> extends MessengerStream<TIn, TOut> implements IReceiverStream<TWith> {
         protected othersource: ISenderStream<TWith>;
 
-        constructor(source: ISenderStream<TIn>, otherparent: ISenderStream<TWith>) {
+        constructor(source: ISenderStream<TIn>, othersource: ISenderStream<TWith>) {
             super(source);
-            this.othersource = otherparent;
+            this.othersource = othersource;
             this.othersource.targets.push(this);
         }
 
@@ -350,6 +420,20 @@
 
         receive(value: TIn): void {
             this.send(this.func(value));
+        }
+    }
+
+    class DelayStream<T> extends MessengerStream<T, T> {
+        ms: number;
+        constructor(source: ISenderStream<T>, ms: number) {
+            super(source);
+            this.ms = ms;
+        }
+
+        receive(value: T): void {
+            setTimeout(() => {
+                this.send(value)
+            }, this.ms);
         }
     }
 
@@ -388,9 +472,75 @@
         }
     }
 
+    class GroupStream<TKey, TValue> extends MessengerStream<TValue, IGrouping<TKey, TValue>> {
+        protected queue: TValue[];
+
+        constructor(source: ISenderStream<TValue>) {
+            super(source);
+            this.queue = [];
+        }
+
+        flush(key: TKey): void {
+            var group: IGrouping<TKey, TValue> = new Grouping(key, this.queue);
+            this.send(group);
+            this.queue = [];
+        }
+    }
+
+    class GroupByStream<TKey, TValue> extends GroupStream<TKey, TValue> implements IReceiverStream<TKey> {
+        private othersource: ISenderStream<TKey>;
+        constructor(source: ISenderStream<TValue>, othersource: ISenderStream<TKey>) {
+            super(source);
+            this.othersource = othersource;
+            this.othersource.targets.push(this);
+        }
+
+        receive(value: TKey|TValue, source?: ISenderStream<TKey|TValue>): void {
+            if (source == this.source) {
+                this.queue.push(<TValue>value);
+            } else if (source == this.othersource) {
+                this.flush(<TKey>value);
+            }
+        }
+
+        accept(value: TKey|TValue): boolean {
+            return true;
+        }
+    }
+
+    class GroupCountStream<T> extends GroupStream<number, T> {
+        private limit: number;
+        constructor(source: ISenderStream<T>, limit: number) {
+            super(source);
+            this.limit = limit;
+        }
+
+        receive(value: T): void {
+            this.queue.push(value);
+            if (this.queue.length == this.limit) {
+                this.flush(this.limit);
+            }
+        }
+    }
+
+    class GroupTimerStream<T> extends GroupStream<number, T> {
+        private ms: number;
+        private timer: number;
+        constructor(source: ISenderStream<T>, ms: number) {
+            super(source);
+            this.ms = ms;
+        }
+
+        receive(value: T): void {
+            this.queue.push(value);
+            clearTimeout(this.timer);
+            setTimeout(this.flush.bind(this, this.ms), this.ms);
+        }
+    }
+
     class MixStream<T> extends CombineStream<T, T, T> {
-        constructor(source: ISenderStream<T>, otherparent: ISenderStream<T>) {
-            super(source, otherparent);
+        constructor(source: ISenderStream<T>, othersource: ISenderStream<T>) {
+            super(source, othersource);
         }
 
         receive(value: T): void {
@@ -560,13 +710,16 @@
     
     export interface IQuery<T> {
         as: IAs<T>;
+        delay: IDelay<T>;
         flatten: IFlatten<T>;
         mix: IMix<T>;
         pair: IPair<T>;
+        group: IGroup<T>;
         skip: ISkip<T>;
         take: ITake<T>;
         unique: IUnique<T>;
         with: IWith<T>;
+        withhold: IWithhold<T>;
         zip: IZip<T>;
     }
 
@@ -574,8 +727,39 @@
         <TOut>(func: IConverter<T, TOut>): IQuery<TOut>;
     }
 
+    interface IDelay<T> {
+        for: IDelayFor<T>;
+    }
+
+    interface IDelayFor<T> {
+        (ms: number): IQuery<T>;
+    }
+
     interface IFlatten<T> {
         <TOut>(func?: IConverter<T, TOut[]>): IQuery<TOut>;
+    }
+
+    interface IGroup<T> {
+        of: IGroupOf<T>;
+        for: IGroupFor<T>;
+        by: IGroupWith<T>;
+    }
+
+    interface IGroupOf<T> {
+        (count: number): IQuery<IGrouping<number, T>>;
+    }
+
+    interface IGroupFor<T> {
+        (ms: number): IQuery<IGrouping<number, T>>;
+    }
+
+    interface IGroupWith<T> {
+        <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>>;
+    }
+
+    interface IGrouping<TKey, TValue> {
+        key: TKey;
+        values: TValue[];
     }
 
     interface IMix<T> {
@@ -650,6 +834,19 @@
     }
 
     interface IWithReceiver<T> {
+        (receiver: IReceiver<T>): void;
+    }
+
+    interface IWithhold<T> {
+        receiver: IWithReceiver<T>;
+        function: IWithFunction<T>;
+    }
+
+    interface IWithholdFunction<T> {
+        (receiver: IReceiver<T>): void;
+    }
+
+    interface IWithholdReceiver<T> {
         (receiver: IReceiver<T>): void;
     }
 

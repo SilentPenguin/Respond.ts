@@ -68,10 +68,64 @@ class RespondTests extends Test.Case {
     }
 
     @test
+    Delay() {
+        Respond.to.sender(this.target.senderNumber).delay.for(4).with.receiver(this.target.receiverString);
+        var start = performance.now();
+        this.target.senderNumber(1);
+        Assert.that(this.target.value).is.undefined();
+    }
+
+    @test
     Flatten() {
         Respond.to.sender(this.target.senderArray).flatten().with.receiver(this.target.receiverNumber);
         this.target.senderArray([1,2,3]);
         Assert.that(this.target.value).is.exact.to(3);
+    }
+
+    @test
+    GroupOf() {
+        Respond.to.sender(this.target.senderString).group.of(2).with.receiver(this.target.receiverAny);
+        this.target.senderString('1');
+
+        Assert.that(this.target.value).is.undefined();
+
+        this.target.senderString('2');
+        this.target.senderString('3');
+
+        Assert.that(this.target.value.key).is.exact.to(2);
+        Assert.that(this.target.value.values.length).is.exact.to(2);
+        Assert.that(this.target.value.values[0]).is.exact.to(1);
+        Assert.that(this.target.value.values[1]).is.exact.to(2);
+
+        this.target.senderString('4');
+
+        Assert.that(this.target.value.values[0]).is.exact.to(3);
+        Assert.that(this.target.value.values[1]).is.exact.to(4);
+
+        this.target.senderString('5');
+
+        Assert.that(this.target.value.values[0]).is.exact.to(3);
+        Assert.that(this.target.value.values[1]).is.exact.to(4);
+    }
+
+    @test
+    GroupBy() {
+        Respond.to.sender(this.target.senderString).group.by(this.target.senderNumber).with.receiver(this.target.receiverAny);
+        this.target.senderString('1');
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.undefined();
+
+        this.target.senderNumber(3);
+
+        Assert.that(this.target.value.key).is.exact.to('3');
+        Assert.that(this.target.value.values.length).is.exact.to(2);
+        Assert.that(this.target.value.values[0]).is.exact.to(1);
+        Assert.that(this.target.value.values[1]).is.exact.to(2);
+        this.target.senderString('4');
+        this.target.senderNumber(5);
+        Assert.that(this.target.value.key).is.exact.to('5');
+        Assert.that(this.target.value.values.length).is.exact.to(1);
+        Assert.that(this.target.value.values[0]).is.exact.to(4);
     }
 
     @test
