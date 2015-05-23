@@ -157,6 +157,29 @@ class RespondTests extends Test.Case {
     }
 
     @test
+    QueueOf() {
+        Respond.to.sender(this.target.senderString).queue.of(2).with.receiver(this.target.receiverNumber);
+        this.target.senderString('1');
+        Assert.that(this.target.value).is.undefined();
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.exact.to(2);
+        this.target.senderString('3');
+        Assert.that(this.target.value).is.exact.to(2);
+        this.target.senderString('3');
+        Assert.that(this.target.value).is.exact.to(3);
+    }
+
+    @test
+    QueueBy() {
+        Respond.to.sender(this.target.senderString).queue.by(this.target.senderNumber).with.receiver(this.target.receiverNumber);
+        this.target.senderString('1');
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.undefined();
+        this.target.senderNumber(3);
+        Assert.that(this.target.value).is.exact.to(2);
+    }
+
+    @test
     Skip() {
         Respond.to.sender(this.target.senderNumber).skip(1).with.receiver(this.target.receiverString);
         this.target.senderNumber(1);

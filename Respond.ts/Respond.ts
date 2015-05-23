@@ -131,7 +131,7 @@
         return {
             of: GroupOf.call(this),
             for: GroupFor.call(this),
-            by: GroupWith.call(this)
+            by: GroupBy.call(this)
         }
     }
 
@@ -149,7 +149,7 @@
         }
     }
 
-    function GroupWith<T>(): IGroupWith<T> {
+    function GroupBy<T>(): IGroupBy<T> {
         return <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>> => {
             var stream: ISenderStream<IGrouping<TWith, T>> = new GroupByStream<TWith, T>(this.stream, sender);
             return new Query(stream);
@@ -202,24 +202,24 @@
         return {
             of: QueueOf.call(this),
             for: QueueFor.call(this),
-            by: QueueWith.call(this)
+            by: QueueBy.call(this)
         }
     }
 
-    function QueueOf<T>(): IGroupFor<T> {
-        return (count: number): IQuery<IGrouping<number, T>> => {
+    function QueueOf<T>(): IQueueOf<T> {
+        return (count: number): IQuery<T> => {
             return this.group.of(count).flatten((group) => group.values);
         }
     }
 
-    function QueueFor<T>(): IGroupFor<T> {
-        return (ms: number): IQuery<IGrouping<number, T>> => {
+    function QueueFor<T>(): IQueueFor<T> {
+        return (ms: number): IQuery<T> => {
             return this.group.for(ms).flatten((group) => group.values);
         }
     }
 
-    function QueueWith<T>(): IGroupWith<T> {
-        return <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>> => {
+    function QueueBy<T>(): IQueueBy<T> {
+        return <TWith>(sender: ISenderStream<TWith>): IQuery<T> => {
             return this.group.with(sender).flatten((group) => group.values);
         }
     }
@@ -774,7 +774,7 @@
     interface IGroup<T> {
         of: IGroupOf<T>;
         for: IGroupFor<T>;
-        by: IGroupWith<T>;
+        by: IGroupBy<T>;
     }
 
     interface IGroupOf<T> {
@@ -785,7 +785,7 @@
         (ms: number): IQuery<IGrouping<number, T>>;
     }
 
-    interface IGroupWith<T> {
+    interface IGroupBy<T> {
         <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>>;
     }
 
