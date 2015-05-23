@@ -95,6 +95,7 @@
         group: IGroup<T> = Group.call(this);
         mix: IMix<T> = Mix.call(this);
         pair: IPair<T> = Pair.call(this);
+        queue: IQueue<T> = Queue.call(this);
         skip: ISkip<T> = Skip.call(this);
         take: ITake<T> = Take.call(this);
         unique: IUnique<T> = Unique.call(this);
@@ -195,6 +196,32 @@
     class PairQuery<T, TWith> extends Query<IPairing<T, TWith>> implements IPairQuery<T, TWith> {
         if: IIf<IPairing<T, TWith>> = TakeIf.call(this);
         constructor(iterator: ISenderStream<IPairing<T, TWith>>) { super(iterator) }
+    }
+
+    function Queue<T>(): IQueue<T> {
+        return {
+            of: QueueOf.call(this),
+            for: QueueFor.call(this),
+            by: QueueWith.call(this)
+        }
+    }
+
+    function QueueOf<T>(): IGroupFor<T> {
+        return (count: number): IQuery<IGrouping<number, T>> => {
+            return this.group.of(count).flatten((group) => group.values);
+        }
+    }
+
+    function QueueFor<T>(): IGroupFor<T> {
+        return (ms: number): IQuery<IGrouping<number, T>> => {
+            return this.group.for(ms).flatten((group) => group.values);
+        }
+    }
+
+    function QueueWith<T>(): IGroupWith<T> {
+        return <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>> => {
+            return this.group.with(sender).flatten((group) => group.values);
+        }
     }
 
     function Skip<T>(): ISkip<T> {
@@ -526,15 +553,19 @@
     class GroupTimerStream<T> extends GroupStream<number, T> {
         private ms: number;
         private timer: number;
+        private time: number;
         constructor(source: ISenderStream<T>, ms: number) {
             super(source);
             this.ms = ms;
         }
 
         receive(value: T): void {
+            if (!this.queue.length) {
+                this.time = performance.now();
+            }
             this.queue.push(value);
             clearTimeout(this.timer);
-            setTimeout(this.flush.bind(this, this.ms), this.ms);
+            setTimeout(() => this.flush(performance.now() - this.time), this.ms);
         }
     }
 
@@ -712,9 +743,10 @@
         as: IAs<T>;
         delay: IDelay<T>;
         flatten: IFlatten<T>;
+        group: IGroup<T>;
         mix: IMix<T>;
         pair: IPair<T>;
-        group: IGroup<T>;
+        queue: IQueue<T>;
         skip: ISkip<T>;
         take: ITake<T>;
         unique: IUnique<T>;
@@ -794,6 +826,24 @@
     interface IPairing<T, TWith> {
         source: T;
         target: TWith;
+    }
+
+    interface IQueue<T> {
+        of: IQueueOf<T>;
+        for: IQueueFor<T>;
+        by: IQueueWith<T>;
+    }
+
+    interface IQueueOf<T> {
+        (count: number): IQuery<T>;
+    }
+
+    interface IQueueFor<T> {
+        (ms: number): IQuery<T>;
+    }
+
+    interface IQueueWith<T> {
+        <TWith>(sender: ISenderStream<TWith>): IQuery<T>;
     }
 
     interface ISkip<T> {
