@@ -119,8 +119,8 @@
     }
 
     function Count<T>(): ICount<T> {
-        return (func?: IFilter<T>): IQuery<number> => {
-            var stream: ISenderStream<number> = new CountStream(this.stream, func);
+        return (): IQuery<number> => {
+            var stream: ISenderStream<number> = new CountStream(this.stream);
             return new Query(stream);
         }
     }
@@ -506,15 +506,13 @@
     class CountStream<T> extends MessengerStream<T, number> {
         private count: number;
         private func: IFilter<T>;
-        constructor(source: ISenderStream<T>, func?: IFilter<T>) {
+        constructor(source: ISenderStream<T>) {
             super(source);
             this.count = 0;
         }
 
         receive(value: T) {
-            if (!this.func || this.func(value)) {
-                this.send(++this.count);
-            }
+            this.send(++this.count);
         }
     }
 
@@ -898,7 +896,7 @@
     }
 
     interface ICount<T> {
-        (func?: IFilter<T>): IQuery<number>;
+        (): IQuery<number>;
     }
 
     interface IDelay<T> {
