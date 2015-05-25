@@ -83,6 +83,19 @@ class RespondTests extends Test.Case {
     }
 
     @test
+    GroupBy() {
+        Respond.to.sender(this.target.senderString).group.by(value => value < 3).with.receiver(this.target.receiverAny);
+        this.target.senderString('1');
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.undefined();
+        this.target.senderString('3');
+        Assert.that(this.target.value.key).is.exact.to(true);
+        Assert.that(this.target.value.values.length).is.exact.to(2);
+        Assert.that(this.target.value.values[0]).is.exact.to(1);
+        Assert.that(this.target.value.values[1]).is.exact.to(2);
+    }
+
+    @test
     GroupOf() {
         Respond.to.sender(this.target.senderString).group.of(2).with.receiver(this.target.receiverAny);
         this.target.senderString('1');
@@ -109,8 +122,8 @@ class RespondTests extends Test.Case {
     }
 
     @test
-    GroupBy() {
-        Respond.to.sender(this.target.senderString).group.by(this.target.senderNumber).with.receiver(this.target.receiverAny);
+    GroupWhen() {
+        Respond.to.sender(this.target.senderString).group.when(this.target.senderNumber).with.receiver(this.target.receiverAny);
         this.target.senderString('1');
         this.target.senderString('2');
         Assert.that(this.target.value).is.undefined();
