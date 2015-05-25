@@ -95,7 +95,6 @@
         group: IGroup<T> = Group.call(this);
         mix: IMix<T> = Mix.call(this);
         pair: IPair<T> = Pair.call(this);
-        queue: IQueue<T> = Queue.call(this);
         skip: ISkip<T> = Skip.call(this);
         take: ITake<T> = Take.call(this);
         unique: IUnique<T> = Unique.call(this);
@@ -150,8 +149,8 @@
     }
 
     function GroupBy<T>(): IGroupBy<T> {
-        return <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>> => {
-            var stream: ISenderStream<IGrouping<TWith, T>> = new GroupByStream<TWith, T>(this.stream, sender);
+        return <TWith>(func: IConverter<T, TWith>): IQuery<IGrouping<TWith, T>> => {
+            var stream: ISenderStream<IGrouping<TWith, T>> = new GroupByStream<TWith, T>(this.stream, func);
             return new Query(stream);
         }
     }
@@ -196,32 +195,6 @@
     class PairQuery<T, TWith> extends Query<IPairing<T, TWith>> implements IPairQuery<T, TWith> {
         if: IIf<IPairing<T, TWith>> = TakeIf.call(this);
         constructor(iterator: ISenderStream<IPairing<T, TWith>>) { super(iterator) }
-    }
-
-    function Queue<T>(): IQueue<T> {
-        return {
-            of: QueueOf.call(this),
-            for: QueueFor.call(this),
-            by: QueueBy.call(this)
-        }
-    }
-
-    function QueueOf<T>(): IQueueOf<T> {
-        return (count: number): IQuery<T> => {
-            return this.group.of(count).flatten((group) => group.values);
-        }
-    }
-
-    function QueueFor<T>(): IQueueFor<T> {
-        return (ms: number): IQuery<T> => {
-            return this.group.for(ms).flatten((group) => group.values);
-        }
-    }
-
-    function QueueBy<T>(): IQueueBy<T> {
-        return <TWith>(sender: ISenderStream<TWith>): IQuery<T> => {
-            return this.group.with(sender).flatten((group) => group.values);
-        }
     }
 
     function Skip<T>(): ISkip<T> {
@@ -514,23 +487,26 @@
         }
     }
 
-    class GroupByStream<TKey, TValue> extends GroupStream<TKey, TValue> implements IReceiverStream<TKey> {
-        private othersource: ISenderStream<TKey>;
-        constructor(source: ISenderStream<TValue>, othersource: ISenderStream<TKey>) {
+    class GroupByStream<TKey, TValue> extends GroupStream<TKey, TValue> {
+        func: IConverter<TValue, TKey>;
+        key: TKey;
+        constructor(source: ISenderStream<TValue>, func: IConverter<TValue, TKey>) {
             super(source);
-            this.othersource = othersource;
-            this.othersource.targets.push(this);
+            this.func = func;
         }
 
-        receive(value: TKey|TValue, source?: ISenderStream<TKey|TValue>): void {
-            if (source == this.source) {
-                this.queue.push(<TValue>value);
-            } else if (source == this.othersource) {
-                this.flush(<TKey>value);
+        receive(value: TValue): void {
+
+            var key: TKey = this.func(value);
+            if (key !== this.key) {
+                this.flush(this.key);
+                this.key = key;
             }
+
+            this.queue.push(value);
         }
 
-        accept(value: TKey|TValue): boolean {
+        accept(value: TValue): boolean {
             return true;
         }
     }
@@ -746,7 +722,6 @@
         group: IGroup<T>;
         mix: IMix<T>;
         pair: IPair<T>;
-        queue: IQueue<T>;
         skip: ISkip<T>;
         take: ITake<T>;
         unique: IUnique<T>;
@@ -826,24 +801,6 @@
     interface IPairing<T, TWith> {
         source: T;
         target: TWith;
-    }
-
-    interface IQueue<T> {
-        of: IQueueOf<T>;
-        for: IQueueFor<T>;
-        by: IQueueWith<T>;
-    }
-
-    interface IQueueOf<T> {
-        (count: number): IQuery<T>;
-    }
-
-    interface IQueueFor<T> {
-        (ms: number): IQuery<T>;
-    }
-
-    interface IQueueWith<T> {
-        <TWith>(sender: ISenderStream<TWith>): IQuery<T>;
     }
 
     interface ISkip<T> {
