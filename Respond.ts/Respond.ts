@@ -77,6 +77,10 @@
      *----------------*/
 
     export var to = {
+        interval: (ms: number): IQuery<number> => {
+            var stream: ISenderStream<number> = new TimerStream(ms);
+            return new Query(stream);
+        },
         sender: <T>(sender: ISender<T>): IQuery<T> => {
             return new Query(sender);
         }
@@ -428,25 +432,31 @@
      *    Streams     *
      *----------------*/
 
-    class MessengerStream<TIn, TOut> implements IMessengerStream<TIn, TOut> {
-        source: ISenderStream<TIn>;
-        targets: IReceiverStream<TOut>[];
+    class SenderStream<T> implements ISenderStream<T> {
+        targets: IReceiverStream<T>[];
+        value: T;
 
-        value: TOut;
+        constructor() {
+            this.targets = [];
+        }
+
+        send(value: T): void {
+            this.value = value;
+            this.targets.forEach(target => target.receive(value, this));
+        }
+    }
+
+    class MessengerStream<TIn, TOut> extends SenderStream<TOut> implements IMessengerStream<TIn, TOut> {
+        source: ISenderStream<TIn>;
 
         constructor(source: ISenderStream<TIn>) {
+            super();
             this.source = source;
             this.source.targets.push(this);
-            this.targets = [];
         }
 
         receive(value: TIn): void {
             throw Error();
-        }
-
-        send(value: TOut): void {
-            this.value = value;
-            this.targets.forEach(target => target.receive(value, this));
         }
 
         accept(value: TIn): boolean {
@@ -737,6 +747,16 @@
     class TakeUntilStream<T> extends TakeWhileStream<T> {
         constructor(parent: ISenderStream<T>, func: IFilter<T>) {
             super(parent, (item: T) => !func(item));
+        }
+    }
+
+    class TimerStream extends SenderStream<number> {
+        start: number;
+        timer: number;
+        constructor(ms: number) {
+            super();
+            this.start = performance.now();
+            this.timer = setInterval(() => this.send(performance.now() - this.start), ms);
         }
     }
 
