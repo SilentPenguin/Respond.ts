@@ -122,8 +122,8 @@ class RespondTests extends Test.Case {
     }
 
     @test
-    GroupWhen() {
-        Respond.to.sender(this.target.senderString).group.when(this.target.senderNumber).with.receiver(this.target.receiverAny);
+    GroupWith() {
+        Respond.to.sender(this.target.senderString).group.with(this.target.senderNumber).with.receiver(this.target.receiverAny);
         this.target.senderString('1');
         this.target.senderString('2');
         Assert.that(this.target.value).is.undefined();
@@ -139,6 +139,30 @@ class RespondTests extends Test.Case {
         Assert.that(this.target.value.key).is.exact.to('5');
         Assert.that(this.target.value.values.length).is.exact.to(1);
         Assert.that(this.target.value.values[0]).is.exact.to(4);
+    }
+
+    @test
+    Maximum() {
+        Respond.to.sender(this.target.senderString).maximum()
+            .with.receiver(this.target.receiverNumber);
+
+        this.target.senderString('1');
+        Assert.that(this.target.value).is.exact.to(1);
+        this.target.senderString('2');
+        this.target.senderString('1');
+        Assert.that(this.target.value).is.exact.to(2);
+    }
+
+    @test
+    Minimum() {
+        Respond.to.sender(this.target.senderString).minimum()
+            .with.receiver(this.target.receiverNumber);
+
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.exact.to(2);
+        this.target.senderString('1');
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.exact.to(1);
     }
 
     @test
@@ -183,8 +207,8 @@ class RespondTests extends Test.Case {
     }
 
     @test
-    QueueBy() {
-        Respond.to.sender(this.target.senderString).queue.by(this.target.senderNumber).with.receiver(this.target.receiverNumber);
+    QueueWith() {
+        Respond.to.sender(this.target.senderString).queue.with(this.target.senderNumber).with.receiver(this.target.receiverNumber);
         this.target.senderString('1');
         this.target.senderString('2');
         Assert.that(this.target.value).is.undefined();

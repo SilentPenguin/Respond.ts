@@ -93,6 +93,8 @@
         delay: IDelay<T> = Delay.call(this);
         flatten: IFlatten<T> = Flatten.call(this);
         group: IGroup<T> = Group.call(this);
+        maximum: IMaximum<T> = Maximum.call(this);
+        minimum: IMinimum<T> = Minimum.call(this);
         mix: IMix<T> = Mix.call(this);
         pair: IPair<T> = Pair.call(this);
         queue: IQueue<T> = Queue.call(this);
@@ -173,6 +175,24 @@
         }
     }
 
+    function Maximum<T>(): IMaximum<T> {
+        var object: any = () => { return this.maximum.by(item => item); }
+        object.by = <TKey>(func: IConverter<T, TKey>) => {
+            var sender: ISenderStream<T> = new MaximumStream(this.stream, func);
+            return new Query(sender);
+        }
+        return object;
+    }
+
+    function Minimum<T>(): IMinimum<T> {
+        var object: any = () => { return this.minimum.by(item => item); }
+        object.by = <TKey>(func: IConverter<T, TKey>) => {
+            var sender: ISenderStream<T> = new MinimumStream(this.stream, func);
+            return new Query(sender);
+        }
+        return object;
+    }
+
     function Mix<T>(): IMix<T> {
         return { with: MixWith.call(this) };
     }
@@ -211,7 +231,7 @@
             by: QueueBy.call(this),
             for: QueueFor.call(this),
             of: QueueOf.call(this),
-            with: QueueWhen.call(this)
+            with: QueueWith.call(this)
         }
     }
 
@@ -233,9 +253,9 @@
         }
     }
 
-    function QueueWhen<T>(): IQueueWhen<T> {
+    function QueueWith<T>(): IQueueWhen<T> {
         return <TWith>(sender: ISenderStream<TWith>): IQuery<T> => {
-            return this.group.when(sender).flatten(pair => pair.values);
+            return this.group.with(sender).flatten(pair => pair.values);
         }
     }
 
@@ -523,9 +543,11 @@
         }
 
         flush(key: TKey): void {
-            var group: IGrouping<TKey, TValue> = new Grouping(key, this.queue);
-            this.send(group);
-            this.queue = [];
+            if (this.queue.length) {
+                var group: IGrouping<TKey, TValue> = new Grouping(key, this.queue);
+                this.send(group);
+                this.queue = [];
+            }
         }
     }
 
@@ -538,7 +560,6 @@
         }
 
         receive(value: TValue): void {
-
             var key: TKey = this.func(value);
             if (key !== this.key) {
                 this.flush(this.key);
@@ -605,6 +626,38 @@
 
         accept(value: TKey|TValue): boolean {
             return true;
+        }
+    }
+
+    class MaximumStream<TKey, TValue> extends MessengerStream<TValue, TValue> {
+        func: IConverter<TValue, TKey>;
+        maximum: TKey;
+        constructor(source: ISenderStream<TValue>, func: IConverter<TValue, TKey>) {
+            super(source);
+            this.func = func;
+        }
+        receive(value: TValue): void {
+            var key: TKey = this.func(value);
+            if (key >= this.maximum || this.maximum == undefined) {
+                this.maximum = key;
+                this.send(value);
+            }
+        }
+    }
+
+    class MinimumStream<TKey, TValue> extends MessengerStream<TValue, TValue> {
+        func: IConverter<TValue, TKey>;
+        minimum: TKey;
+        constructor(source: ISenderStream<TValue>, func: IConverter<TValue, TKey>) {
+            super(source);
+            this.func = func;
+        }
+        receive(value: TValue): void {
+            var key: TKey = this.func(value);
+            if (key <= this.minimum || this.minimum == undefined) {
+                this.minimum = key;
+                this.send(value);
+            }
         }
     }
 
@@ -783,6 +836,8 @@
         delay: IDelay<T>;
         flatten: IFlatten<T>;
         group: IGroup<T>;
+        maximum: IMaximum<T>;
+        minimum: IMinimum<T>;
         mix: IMix<T>;
         pair: IPair<T>;
         queue: IQueue<T>;
@@ -836,6 +891,22 @@
     interface IGrouping<TKey, TValue> {
         key: TKey;
         values: TValue[];
+    }
+
+    interface IMaximum<T> {
+        (): IQuery<T>;
+    }
+
+    interface IMaximumBy<T> {
+        <TKey>(func: IConverter<T, TKey>): IQuery<T>;
+    }
+
+    interface IMinimum<T> {
+        (): IQuery<T>;
+    }
+
+    interface IMinimumBy<T> {
+        <TKey>(func: IConverter<T, TKey>): IQuery<T>;
     }
 
     interface IMix<T> {
