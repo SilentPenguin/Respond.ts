@@ -94,6 +94,7 @@
         }
 
         as: IAs<T> = As.call(this);
+        count: ICount<T> = Count.call(this);
         delay: IDelay<T> = Delay.call(this);
         flatten: IFlatten<T> = Flatten.call(this);
         group: IGroup<T> = Group.call(this);
@@ -113,6 +114,13 @@
     function As<T>(): IAs<T> {
         return <TOut>(func: IConverter<T, TOut>): IQuery<TOut> => {
             var stream: ISenderStream<TOut> = new ConvertStream(this.stream, func);
+            return new Query(stream);
+        }
+    }
+
+    function Count<T>(): ICount<T> {
+        return (func?: IFilter<T>): IQuery<number> => {
+            var stream: ISenderStream<number> = new CountStream(this.stream, func);
             return new Query(stream);
         }
     }
@@ -495,6 +503,21 @@
         }
     }
 
+    class CountStream<T> extends MessengerStream<T, number> {
+        private count: number;
+        private func: IFilter<T>;
+        constructor(source: ISenderStream<T>, func?: IFilter<T>) {
+            super(source);
+            this.count = 0;
+        }
+
+        receive(value: T) {
+            if (!this.func || this.func(value)) {
+                this.send(++this.count);
+            }
+        }
+    }
+
     class DelayStream<T> extends MessengerStream<T, T> {
         ms: number;
         constructor(source: ISenderStream<T>, ms: number) {
@@ -853,6 +876,7 @@
     
     export interface IQuery<T> {
         as: IAs<T>;
+        count: ICount<T>;
         delay: IDelay<T>;
         flatten: IFlatten<T>;
         group: IGroup<T>;
@@ -871,6 +895,10 @@
 
     interface IAs<T> {
         <TOut>(func: IConverter<T, TOut>): IQuery<TOut>;
+    }
+
+    interface ICount<T> {
+        (func?: IFilter<T>): IQuery<number>;
     }
 
     interface IDelay<T> {
