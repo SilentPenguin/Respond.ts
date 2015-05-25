@@ -68,6 +68,17 @@ class RespondTests extends Test.Case {
     }
 
     @test
+    Count() {
+        Respond.to.sender(this.target.senderString).count().with.receiver(this.target.receiverNumber);
+        this.target.senderString('1');
+        Assert.that(this.target.value).is.exact.to(1);
+        this.target.senderString('1');
+        Assert.that(this.target.value).is.exact.to(2);
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.exact.to(3);
+    }
+
+    @test
     Delay() {
         Respond.to.sender(this.target.senderNumber).delay.for(4).with.receiver(this.target.receiverString);
         var start = performance.now();
