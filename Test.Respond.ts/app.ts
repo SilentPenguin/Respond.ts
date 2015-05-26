@@ -6,6 +6,9 @@
 class MyClass {
     value: any;
 
+    @property
+    altValue: number;
+
     @sender
     senderNumber(input: number): string {
         return input.toString();
@@ -52,12 +55,25 @@ class RespondTests extends Test.Case {
         this.target.senderNumber(1);
         Assert.that(this.target.value).is.exact.to('1');
     }
+
     @test
     ConnectFunction() {
         var value, func = function (val) { value = val; }
         Respond.to.sender(this.target.senderNumber).with.function(func);
         this.target.senderNumber(1);
         Assert.that(value).is.exact.to('1');
+    }
+
+    @test
+    ConnectProperty() {
+        Respond.to.property(this.target.altValue).with.receiver(this.target.receiverNumber);
+        Assert.that(this.target.value).is.undefined();
+        this.target.altValue = 1;
+        Assert.that(this.target.value).is.exact.to(1);
+
+        Respond.to.sender(this.target.senderString).with.property(this.target.altValue);
+        this.target.senderString('2');
+        Assert.that(this.target.value).is.exact.to(2);
     }
 
     @test

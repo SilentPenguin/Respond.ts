@@ -3,6 +3,7 @@
     /*----------------*
      *   Decorators   *
      *----------------*/
+
     function MessengerDecorator(): IMessengerDecorator {
         return <T extends Function>(target: Object, key: string, descriptor: TypedPropertyDescriptor<T>): TypedPropertyDescriptor<T> => {
             descriptor = { get: MessengerConstructor(key, descriptor.value) };
@@ -68,9 +69,48 @@
         }
     }
 
+    function PropertyDecorator() : IPropertyDecorator {
+        return <T>(target: Object, key: string) => {
+            Object.defineProperty(target, key,
+                {
+                    get: function () {
+                        if (this[key + '_observer'] == undefined) {
+                            this[key + '_observer'] = new Observable<T>();
+                        }
+                        return this[key + '_observer'];
+                    },
+                    set: function (value) {
+                        this[key].receive(value);
+                    }
+                }
+                );
+        }
+    }
+
+    class Observable<T> {
+        value: T;
+        sources: ISenderStream<T>[];
+        targets: IReceiverStream<T>[];
+
+        constructor() {
+            this.sources = [];
+            this.targets = [];
+        }
+
+        send(value: T) {
+            this.targets.forEach(target => target.receive(this.value, this));
+        }
+
+        receive(value: T) {
+            this.value = value;
+            this.send(value);
+        }
+    }
+
     export var messenger: IMessengerDecorator = MessengerDecorator();
     export var sender: ISenderDecorator = SenderDecorator();
     export var receiver: IReceiverDecorator = ReceiverDecorator();
+    export var property: IPropertyDecorator = PropertyDecorator();
 
     /*----------------*
      * Implementation *
@@ -80,6 +120,9 @@
         interval: (ms: number): IQuery<number> => {
             var stream: ISenderStream<number> = new TimerStream(ms);
             return new Query(stream);
+        },
+        property: <T>(property: T): IQuery<T> => {
+            return new Query<T>(<any>property);
         },
         sender: <T>(sender: ISender<T>): IQuery<T> => {
             return new Query(sender);
@@ -378,14 +421,9 @@
 
     function With<T>(): IWith<T> {
         return {
-            receiver: WithReceiver.call(this),
-            function: WithFunction.call(this)
-        };
-    }
-
-    function WithReceiver<T>(): IWithReceiver<T> {
-        return (receiver: IReceiver<T>): void => {
-            this.stream.targets.push(receiver);
+            function: WithFunction.call(this),
+            property: WithProperty.call(this),
+            receiver: WithReceiver.call(this)
         };
     }
 
@@ -398,10 +436,35 @@
         };
     }
 
+    function WithProperty<T>(): IWithProperty<T> {
+        return (receiver: T): void => {
+            this.stream.targets.push(receiver);
+        };
+    }
+
+    function WithReceiver<T>(): IWithReceiver<T> {
+        return (receiver: IReceiver<T>): void => {
+            this.stream.targets.push(receiver);
+        };
+    }
+
     function Withhold<T>(): IWithhold<T> {
         return {
-            receiver: WithholdReceiver.call(this),
-            function: WithholdFunction.call(this)
+            function: WithholdFunction.call(this),
+            property: WithholdProperty.call(this),
+            receiver: WithholdReceiver.call(this)
+        };
+    }
+
+    function WithholdProperty<T>(): IWithholdProperty<T> {
+        return (receiver: T): void => {
+
+        };
+    }
+
+    function WithholdFunction<T>(): IWithholdFunction<T> {
+        return (receiver: IReceiver<T>): void => {
+            
         };
     }
 
@@ -409,12 +472,6 @@
         return (receiver: IReceiver<T>): void => {
             //start at the receiver and work up the chain, looking for a sender connection?
             //or create an object and use that to destory the connection?
-        };
-    }
-
-    function WithholdFunction<T>(): IWithholdFunction<T> {
-        return (receiver: IReceiver<T>): void => {
-            
         };
     }
 
@@ -848,6 +905,10 @@
     export interface IConverter<TIn, TOut> extends IFunction<TIn, TOut> { }
     export interface IFilter<T> { (item: T, index?: number): boolean }
 
+    interface IPropertyDecorator {
+        (target: Object, key: string): void;
+    }
+
     interface IMethodDecorator {
         (target: Object, key: string, descriptor: TypedPropertyDescriptor<any>): TypedPropertyDescriptor<any>;
     }
@@ -1041,12 +1102,17 @@
     }
 
     interface IWith<T> {
-        receiver: IWithReceiver<T>;
         function: IWithFunction<T>;
+        property: IWithProperty<T>;
+        receiver: IWithReceiver<T>;
     }
 
     interface IWithFunction<T> {
         (receiver: IReceiver<T>): void;
+    }
+
+    interface IWithProperty<T> {
+        (receiver: T): void;
     }
 
     interface IWithReceiver<T> {
@@ -1054,12 +1120,17 @@
     }
 
     interface IWithhold<T> {
-        receiver: IWithReceiver<T>;
-        function: IWithFunction<T>;
+        property: IWithholdProperty<T>;
+        function: IWithholdFunction<T>;
+        receiver: IWithholdReceiver<T>;
     }
 
     interface IWithholdFunction<T> {
         (receiver: IReceiver<T>): void;
+    }
+
+    interface IWithholdProperty<T> {
+        (receiver: T): void;
     }
 
     interface IWithholdReceiver<T> {
@@ -1089,7 +1160,7 @@
     }
 }
 
-
+var property = Respond.property;
 var messenger = Respond.messenger;
 var sender = Respond.sender;
 var receiver = Respond.receiver;
