@@ -447,6 +447,31 @@
             subscribe(this.stream, receiver);
         };
     }
+    function Withhold<T>(): IWithhold<T> {
+        return {
+            function: WithholdFunction.call(this),
+            property: WithholdProperty.call(this),
+            receiver: WithholdReceiver.call(this)
+        };
+    }
+
+    function WithholdFunction<T>(): IWithholdFunction<T> {
+        return (receiver: IReceiver<T>): void => {
+            unsubscribe(this.stream, receiver);
+        }
+    }
+
+    function WithholdProperty<T>(): IWithholdProperty<T> {
+        return (receiver: T): void => {
+            unsubscribe(this.stream, receiver);
+        }
+    }
+
+    function WithholdReceiver<T>(): IWithholdReceiver<T> {
+        return (receiver: IReceiver<T>): void => {
+            unsubscribe(this.stream, receiver);
+        }
+    }
 
     function Zip<T>(): IZip<T> {
         return { with: ZipWith.call(this) };
@@ -475,17 +500,11 @@
         receiver.sources.push(sender);
     }
 
-    function unsubscribe(sender: any, receiver: any): void {
-        sender.targets = sender.targets.filter(item => receiver !== item);
-        receiver.sources = receiver.sources.filter(item => sender !== item);
-        
-        if (!sender.targets.length && sender.sources && sender.sources.length) {
-            sender.sources.forEach(item => unsubscribe(item, sender));
-        }
-
-        if (!receiver.sources.length && receiver.targets && receiver.targets.length) {
-            receiver.sources.forEach(item => unsubscribe(receiver, item));
-        }
+    function unsubscribe<T>(sender: ISenderStream<T>, receiver: IReceiverStream<T>): void {
+            sender.targets = sender.targets.filter(item => receiver !== item);
+            receiver.sources = receiver.sources.filter(item => sender !== item);
+            sender.targets.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(sender, item));
+            receiver.sources.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(item, receiver));
     }
 
     class SenderStream<T> implements ISenderStream<T> {

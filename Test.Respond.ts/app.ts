@@ -319,6 +319,26 @@ class RespondTests extends Test.Case {
     }
 
     @test
+    WithholdSimple() {
+        Respond.to.sender(this.target.senderNumber).with.receiver(this.target.receiverString);
+        this.target.senderNumber(1);
+        Assert.that(this.target.value).is.exact.to('1');
+        Respond.to.sender(this.target.senderNumber).withhold.receiver(this.target.receiverString);
+        this.target.senderNumber(2);
+        Assert.that(this.target.value).is.exact.to('1');
+    }
+
+    @test
+    WithholdChained() {
+        Respond.to.sender(this.target.senderNumber).unique().with.receiver(this.target.receiverString);
+        this.target.senderNumber(1);
+        Assert.that(this.target.value).is.exact.to('1');
+        Respond.to.sender(this.target.senderNumber).withhold.receiver(this.target.receiverString);
+        this.target.senderNumber(2);
+        Assert.that(this.target.value).is.exact.to('1');
+    }
+
+    @test
     Zip() {
         Respond.to.sender(this.target.senderNumber)
             .zip.with(this.target.senderString)
