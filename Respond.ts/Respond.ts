@@ -448,33 +448,6 @@
         };
     }
 
-    function Withhold<T>(): IWithhold<T> {
-        return {
-            function: WithholdFunction.call(this),
-            property: WithholdProperty.call(this),
-            receiver: WithholdReceiver.call(this)
-        };
-    }
-
-    function WithholdProperty<T>(): IWithholdProperty<T> {
-        return (receiver: T): void => {
-
-        };
-    }
-
-    function WithholdFunction<T>(): IWithholdFunction<T> {
-        return (receiver: IReceiver<T>): void => {
-            
-        };
-    }
-
-    function WithholdReceiver<T>(): IWithholdReceiver<T> {
-        return (receiver: IReceiver<T>): void => {
-            //start at the receiver and work up the chain, looking for a sender connection?
-            //or create an object and use that to destory the connection?
-        };
-    }
-
     function Zip<T>(): IZip<T> {
         return { with: ZipWith.call(this) };
     }
