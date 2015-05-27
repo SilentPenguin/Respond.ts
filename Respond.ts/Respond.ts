@@ -189,7 +189,7 @@
             by: GroupBy.call(this),
             for: GroupFor.call(this),
             of: GroupOf.call(this),
-            with: GroupWhen.call(this)
+            with: GroupWith.call(this)
         }
     }
 
@@ -214,9 +214,9 @@
         }
     }
 
-    function GroupWhen<T>(): IGroupWhen<T> {
+    function GroupWith<T>(): IGroupWith<T> {
         return <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>> => {
-            var stream: ISenderStream<IGrouping<TWith, T>> = new GroupWhenStream<TWith, T>(this.stream, sender);
+            var stream: ISenderStream<IGrouping<TWith, T>> = new GroupWithStream<TWith, T>(this.stream, sender);
             return new Query(stream);
         }
     }
@@ -308,7 +308,7 @@
         }
     }
 
-    function QueueWith<T>(): IQueueWhen<T> {
+    function QueueWith<T>(): IQueueWith<T> {
         return <TWith>(sender: ISenderStream<TWith>): IQuery<T> => {
             return this.group.with(sender).flatten(pair => pair.values);
         }
@@ -432,19 +432,19 @@
             receiver.sources = receiver.sources || [];
             receiver.accept = receiver.accept || function () { return true };
             receiver.receive = receiver.receive || receiver;
-            this.stream.targets.push(receiver);
+            subscribe(this.stream, receiver);
         };
     }
 
     function WithProperty<T>(): IWithProperty<T> {
         return (receiver: T): void => {
-            this.stream.targets.push(receiver);
+            subscribe(this.stream, receiver);
         };
     }
 
     function WithReceiver<T>(): IWithReceiver<T> {
         return (receiver: IReceiver<T>): void => {
-            this.stream.targets.push(receiver);
+            subscribe(this.stream, receiver);
         };
     }
 
@@ -497,6 +497,24 @@
      *    Streams     *
      *----------------*/
 
+    function subscribe<T>(sender: ISenderStream<T>, receiver: IReceiverStream<T>): void {
+        sender.targets.push(receiver);
+        receiver.sources.push(sender);
+    }
+
+    function unsubscribe(sender: any, receiver: any): void {
+        sender.targets = sender.targets.filter(item => receiver !== item);
+        receiver.sources = receiver.sources.filter(item => sender !== item);
+        
+        if (!sender.targets.length && sender.sources && sender.sources.length) {
+            sender.sources.forEach(item => unsubscribe(item, sender));
+        }
+
+        if (!receiver.sources.length && receiver.targets && receiver.targets.length) {
+            receiver.sources.forEach(item => unsubscribe(receiver, item));
+        }
+    }
+
     class SenderStream<T> implements ISenderStream<T> {
         targets: IReceiverStream<T>[];
         value: T;
@@ -509,30 +527,21 @@
             this.value = value;
             this.targets.forEach(target => target.receive(value, this));
         }
-
-        sendEnd(): void {
-            this.targets.forEach(item => item.receiveEnd(this));
-        }
     }
 
     class MessengerStream<TIn, TOut> extends SenderStream<TOut> implements IMessengerStream<TIn, TOut> {
         source: ISenderStream<TIn>;
+        sources: ISenderStream<TIn>[];
 
         constructor(source: ISenderStream<TIn>) {
             super();
             this.source = source;
-            this.source.targets.push(this);
+            this.sources = [];
+            subscribe(source, this);
         }
 
         receive(value: TIn): void {
             throw Error();
-        }
-
-        receiveEnd(source: ISenderStream<TIn>): void {
-            if (source == this.source) {
-                this.source = null;
-                this.sendEnd();
-            }
         }
 
         accept(value: TIn): boolean {
@@ -542,23 +551,16 @@
 
     class CombineStream<TIn, TWith, TOut> extends MessengerStream<TIn, TOut> implements IReceiverStream<TWith> {
         protected othersource: ISenderStream<TWith>;
+        sources: ISenderStream<any>[];
 
         constructor(source: ISenderStream<TIn>, othersource: ISenderStream<TWith>) {
             super(source);
             this.othersource = othersource;
-            this.othersource.targets.push(this);
+            subscribe(othersource, this);
         }
 
         receive(value: TIn|TWith, sender?: ISenderStream<TIn|TWith>): void {
             throw Error();
-        }
-
-        receiveEnd(source: ISenderStream<TIn|TWith>): void {
-            if (source == this.source || source == this.othersource) {
-                this.source = null;
-                this.othersource = null;
-                this.targets.forEach(item => item.receiveEnd(this));
-            }
         }
 
         accept(value: TIn|TWith): boolean {
@@ -715,12 +717,13 @@
         }
     }
 
-    class GroupWhenStream<TKey, TValue> extends GroupStream<TKey, TValue> implements IReceiverStream<TKey> {
+    class GroupWithStream<TKey, TValue> extends GroupStream<TKey, TValue> implements IReceiverStream<TKey> {
         private othersource: ISenderStream<TKey>;
+        sources: ISenderStream<any>[];
         constructor(source: ISenderStream<TValue>, othersource: ISenderStream<TKey>) {
             super(source);
             this.othersource = othersource;
-            this.othersource.targets.push(this);
+            subscribe(othersource, this);
         }
 
         receive(value: TKey|TValue, source?: ISenderStream<TKey|TValue>): void {
@@ -728,14 +731,6 @@
                 this.queue.push(<TValue>value);
             } else if (source == this.othersource) {
                 this.flush(<TKey>value);
-            }
-        }
-
-        receiveEnd(source: ISenderStream<TKey|TValue>): void {
-            if (source == this.source || source == this.othersource) {
-                this.source = null;
-                this.othersource = null;
-                this.sendEnd();
             }
         }
 
@@ -840,6 +835,8 @@
             if (!this.done && this.func(value)) {
                 this.send(value);
             } else {
+                this.sources.forEach(source => unsubscribe(source, this));
+                this.targets.forEach(target => unsubscribe(this, target));
                 this.done = true;
             }
         }
@@ -953,13 +950,11 @@
         value?: T;
         targets?: IReceiverStream<T>[];
         send?(value: T): void;
-        sendEnd?(): void;
     }
     interface IReceiverStream<T> {
         sources?: ISenderStream<T>[];
         accept?(value: T): boolean;
         receive?(value: T, sender?: ISenderStream<T>): void;
-        receiveEnd?(sender: ISenderStream<T>): void;
     }
     
     export interface IQuery<T> {
@@ -1005,7 +1000,7 @@
         of: IGroupOf<T>;
         for: IGroupFor<T>;
         by: IGroupBy<T>;
-        with: IGroupWhen<T>;
+        with: IGroupWith<T>;
     }
 
     interface IGroupOf<T> {
@@ -1020,7 +1015,7 @@
         <TKey>(func: IConverter<T, TKey>): IQuery<IGrouping<TKey, T>>;
     }
 
-    interface IGroupWhen<T> {
+    interface IGroupWith<T> {
         <TWith>(sender: ISenderStream<TWith>): IQuery<IGrouping<TWith, T>>;
     }
 
@@ -1083,7 +1078,7 @@
         of: IQueueOf<T>;
         for: IQueueFor<T>;
         by: IQueueBy<T>;
-        with: IQueueWhen<T>;
+        with: IQueueWith<T>;
     }
 
     interface IQueueOf<T> {
@@ -1098,7 +1093,7 @@
         <TKey>(func: IConverter<T, TKey>): IQuery<T>;
     }
 
-    interface IQueueWhen<T> {
+    interface IQueueWith<T> {
         <TWith>(sender: ISenderStream<TWith>): IQuery<T>;
     }
 
