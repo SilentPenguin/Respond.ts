@@ -509,6 +509,10 @@
             this.value = value;
             this.targets.forEach(target => target.receive(value, this));
         }
+
+        sendEnd(): void {
+            this.targets.forEach(item => item.receiveEnd(this));
+        }
     }
 
     class MessengerStream<TIn, TOut> extends SenderStream<TOut> implements IMessengerStream<TIn, TOut> {
@@ -522,6 +526,13 @@
 
         receive(value: TIn): void {
             throw Error();
+        }
+
+        receiveEnd(source: ISenderStream<TIn>): void {
+            if (source == this.source) {
+                this.source = null;
+                this.sendEnd();
+            }
         }
 
         accept(value: TIn): boolean {
@@ -540,6 +551,14 @@
 
         receive(value: TIn|TWith, sender?: ISenderStream<TIn|TWith>): void {
             throw Error();
+        }
+
+        receiveEnd(source: ISenderStream<TIn|TWith>): void {
+            if (source == this.source || source == this.othersource) {
+                this.source = null;
+                this.othersource = null;
+                this.targets.forEach(item => item.receiveEnd(this));
+            }
         }
 
         accept(value: TIn|TWith): boolean {
@@ -709,6 +728,14 @@
                 this.queue.push(<TValue>value);
             } else if (source == this.othersource) {
                 this.flush(<TKey>value);
+            }
+        }
+
+        receiveEnd(source: ISenderStream<TKey|TValue>): void {
+            if (source == this.source || source == this.othersource) {
+                this.source = null;
+                this.othersource = null;
+                this.sendEnd();
             }
         }
 
@@ -925,12 +952,14 @@
     interface ISenderStream<T> {
         value?: T;
         targets?: IReceiverStream<T>[];
-        send?(value: T);
+        send?(value: T): void;
+        sendEnd?(): void;
     }
     interface IReceiverStream<T> {
         sources?: ISenderStream<T>[];
         accept?(value: T): boolean;
-        receive?(value: T, sender?: ISenderStream<T>);
+        receive?(value: T, sender?: ISenderStream<T>): void;
+        receiveEnd?(sender: ISenderStream<T>): void;
     }
     
     export interface IQuery<T> {
