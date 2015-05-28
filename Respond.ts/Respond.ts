@@ -316,8 +316,7 @@
 
     function Skip<T>(): ISkip<T> {
         var object: any = (count: number) => {
-            var stream = new FilterStream(this.stream, (item: T, index: number) => index >= count);
-            return new Query(stream);
+            return this.skip.while((item: T, index: number) => index < count);
         };
         object.if = SkipIf.call(this);
         object.while = SkipWhile.call(this);
@@ -360,8 +359,7 @@
 
     function Take<T>(): ITake<T> {
         var object: any = (count: number) => {
-            var stream = new FilterStream(this.stream, (item: T, index: number) => index < count);
-            return new Query(stream);
+            return this.take.while((item: T, index: number) => index < count);
         };
         object.if = TakeIf.call(this);
         object.while = TakeWhile.call(this);
@@ -792,15 +790,17 @@
     class SkipWhileStream<T> extends MessengerStream<T, T> {
         private func: IFilter<T>;
         private done: boolean;
+        private index: number;
 
         constructor(source: ISenderStream<T>, func: IFilter<T>) {
             super(source);
             this.func = func;
             this.done = false;
+            this.index = 0;
         }
 
         receive(value: T): void {
-            if (this.done || !this.func(value)) {
+            if (this.done || !this.func(value, this.index++)) {
                 this.done = true;
                 this.send(value);
             }
@@ -820,15 +820,17 @@
     class TakeWhileStream<T> extends MessengerStream<T, T> {
         private func: IFilter<T>;
         private done: boolean;
+        private index: number;
 
         constructor(source: ISenderStream<T>, func: IFilter<T>) {
             super(source);
             this.func = func;
             this.done = false;
+            this.index = 0;
         }
 
         receive(value: T): void {
-            if (!this.done && this.func(value)) {
+            if (!this.done && this.func(value, this.index++)) {
                 this.send(value);
             } else {
                 this.sources.forEach(source => unsubscribe(source, this));
