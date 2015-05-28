@@ -507,6 +507,14 @@
             receiver.sources = receiver.sources.filter(item => sender !== item);
             receiver.sources.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(item, receiver, false, true));
         }
+
+        if (sender instanceof MessengerStream) {
+            (<MessengerStream<any, T>>sender).tidy();
+        }
+
+        if (receiver instanceof MessengerStream) {
+            (<MessengerStream<T, any>>receiver).tidy();
+        }
     }
 
     class SenderStream<T> implements ISenderStream<T> {
@@ -540,6 +548,13 @@
 
         accept(value: TIn): boolean {
             return true;
+        }
+
+        tidy() {
+            if (!this.targets.length || !this.sources.length) {
+                this.targets.forEach(target => unsubscribe(this, target));
+                this.sources.forEach(source => unsubscribe(source, this));
+            }
         }
     }
 
@@ -943,12 +958,16 @@
     interface IReceiver<T> extends IFunction<T, any>, IReceiverStream<T> { }
     interface ISender<T> extends IFunction<any, T>, ISenderStream<T> { }
 
-    interface IMessengerStream<TIn, TOut> extends ISenderStream<TOut>, IReceiverStream<TIn> { }
+    interface IMessengerStream<TIn, TOut> extends ISenderStream<TOut>, IReceiverStream<TIn> { 
+        tidy?(): void;
+    }
+
     interface ISenderStream<T> {
         value?: T;
         targets?: IReceiverStream<T>[];
         send?(value: T): void;
     }
+
     interface IReceiverStream<T> {
         sources?: ISenderStream<T>[];
         accept?(value: T): boolean;
