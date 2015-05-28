@@ -500,11 +500,15 @@
         receiver.sources.push(sender);
     }
 
-    function unsubscribe<T>(sender: ISenderStream<T>, receiver: IReceiverStream<T>): void {
+    function unsubscribe<T>(sender: ISenderStream<T>, receiver: IReceiverStream<T>, up: boolean = true, down: boolean = true): void {
+        if (up) {
             sender.targets = sender.targets.filter(item => receiver !== item);
+            sender.targets.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(sender, item, true, false));
+        }
+        if (down) {
             receiver.sources = receiver.sources.filter(item => sender !== item);
-            sender.targets.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(sender, item));
-            receiver.sources.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(item, receiver));
+            receiver.sources.filter(item => item instanceof SenderStream).forEach(item => unsubscribe(item, receiver, false, true));
+        }
     }
 
     class SenderStream<T> implements ISenderStream<T> {
