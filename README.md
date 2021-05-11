@@ -41,5 +41,5 @@ instance.MySender(2); // console output: 3
 In this example, `MySender` is called with a value.
 Once `MySender` has completed, the return value is passed into `MyReceiver`.
 
-#Getting Started
+# Getting Started
 Please refer to the [wiki](https://github.com/SilentPenguin/Respond.ts/wiki) for more infomation on working with Listen.ts.
